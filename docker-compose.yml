@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1
-      POSTGRES_DB: db
+      POSTGRES_DB: db         #default database
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
