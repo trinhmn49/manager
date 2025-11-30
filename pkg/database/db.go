@@ -10,7 +10,7 @@ import (
 )
 
 type DbInstance struct {
-	db *gorm.DB
+	Db *gorm.DB
 }
 
 func NewDb(config *config.DbConfig) *DbInstance {
@@ -21,6 +21,24 @@ func NewDb(config *config.DbConfig) *DbInstance {
 	}
 	logger.Info("Connected db success")
 	return &DbInstance{
-		db: db,
+		Db: db,
+	}
+}
+
+func NewPostgres(conf *config.AppConfig) *DbInstance {
+	connString := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		conf.DBHost, conf.DBPort, conf.DBUser, conf.DBPwd, conf.DBName,
+	)
+
+	db, err := gorm.Open(postgres.Open(connString), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Successfully connected!")
+
+	return &DbInstance{
+		Db: db,
 	}
 }

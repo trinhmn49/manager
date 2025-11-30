@@ -19,7 +19,7 @@ func LoadLogConfig() (*LogConfig, error) {
 	envType := getEnvType()
 
 	if envType == EnvTypeLocal { // if local, inject env vars from local .env file
-		if err := godotenv.Load(".env"); err != nil {
+		if err := godotenv.Load("log.env"); err != nil {
 			return nil, fmt.Errorf("failed to load local env file: %s", err)
 		}
 	}

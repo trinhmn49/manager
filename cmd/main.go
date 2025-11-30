@@ -1,11 +1,28 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"manager/internal/delivery"
+	"manager/internal/persistence"
+	"manager/internal/usecase"
 	"manager/pkg/config"
 	"manager/pkg/database"
+	"manager/pkg/hash"
 	"manager/pkg/logger"
+	"manager/pkg/server"
+	"manager/shared/provider"
 )
+
+type AppConn struct {
+	DB     *database.DbInstance
+	Hasher hash.PasswordHasher
+}
+
+type Application struct {
+	appConn *AppConn
+	server  *server.Server
+}
 
 func InitLogger() error {
 	// init logger
@@ -27,6 +44,24 @@ func InitLogger() error {
 
 	logger.Info("init logger successfully", logger.F("cfg", cfg))
 	return nil
+}
+
+func buildRoutes(appConn *AppConn) []server.RouteRegister {
+	userRepo := persistence.NewUserRepo(appConn.DB.Db)
+
+	loginUseCase := usecase.NewLoginUseCase(userRepo, appConn.Hasher)
+	registerUseCase := usecase.NewRegisterUseCase(userRepo, appConn.Hasher)
+	return []server.RouteRegister{
+		delivery.NewCustomerHandler(loginUseCase, registerUseCase),
+	}
+}
+
+func (a *Application) Start() {
+	routes := buildRoutes(a.appConn)
+	a.server.SetupRoute(routes)
+	if err := a.server.Start(); err != nil {
+		panic(err)
+	}
 }
 
 func InitDatabase() error {
@@ -57,11 +92,20 @@ func main() {
 		return
 	}
 
-	//init db
-	if err := InitDatabase(); err != nil {
-		logger.Errorf("Err: %v", err)
-		return
+	confPath := flag.String("conf", "", "application config path")
+	flag.Parse()
+	if *confPath == "" {
+		*confPath = "conf.env" //default value
 	}
-
-	fmt.Println("Hello manager")
+	logger.Debugf("Load config from path: %v", *confPath)
+	var appConf config.AppConfig
+	config.LoadConfig(*confPath, &appConf)
+	app := Application{
+		appConn: &AppConn{
+			DB:     provider.ProvidePostgres(&appConf),
+			Hasher: provider.ProvideHasher(),
+		},
+		server: server.New(appConf),
+	}
+	app.Start()
 }
